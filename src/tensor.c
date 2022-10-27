@@ -62,7 +62,11 @@ size_t tensor_len(const tensor t)
 tensor tensor_copy(tensor t)
 {
     // TODO 0.0: copy the tensor and return the copy
-    tensor c = tensor_make(0, 0);
+    tensor c = tensor_make(t.n, t.size);
+    size_t len = tensor_len(t);
+    for (int i = 0; i < len; i++) {
+        c.data[i] = t.data[i];
+    }
     return c;
 }
 
@@ -72,6 +76,10 @@ tensor tensor_copy(tensor t)
 void tensor_scale_(float s, tensor t)
 {
     // TODO 0.1: scale the tensor in place
+    size_t len = tensor_len(t);
+    for (int i = 0; i < len; i++) {
+        t.data[i] *= s;
+    }
 }
 
 // Scaling of tensor
@@ -93,6 +101,10 @@ void tensor_axpy_(float a, tensor x, tensor y)
 {
     assert(tensor_len(x) == tensor_len(y));
     // TODO 0.2: perform the elementwise, in-place computation
+    size_t len = tensor_len(y);
+    for (int i = 0; i < len; i++) {
+        y.data[i] += a * x.data[i];
+    }
 }
 
 // Returns a new dimensionality view of a tensor
@@ -348,7 +360,7 @@ float tensor_sum(tensor a)
     size_t i;
     size_t len = tensor_len(a);
     for(i = 0; i < len; ++i){
-        s += a.data[i];       
+        s += a.data[i];
     }
     return s;
 }

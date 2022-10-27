@@ -8,6 +8,7 @@ libdubnet*
 dubnet
 *.tar.gz
 mnist/
+cifar/
 
 # OS Generated #
 .DS_Store*

@@ -21,8 +21,9 @@ tensor forward_connected_layer(layer *l, tensor x)
     l->x = x;
 
     // TODO: 3.0 - run the network forward
-    tensor y = tensor_make(0, 0);
-
+    tensor temp = matrix_multiply(x, l->w);
+    tensor y = tensor_add(temp, l->b);
+    tensor_free(temp);
     return y;
 }
 
@@ -38,13 +39,24 @@ tensor backward_connected_layer(layer *l, tensor dy)
     // Calculate the gradient dL/db for the bias terms using backward_bias
     // add this into any stored gradient info already in l.db
 
+    tensor db = tensor_sum_dim(dy, 0);
+    l->db = tensor_add(l->db, db);
 
     // Then calculate dL/dw. Use axpy to add this dL/dw into any previously stored
     // updates for our weights, which are stored in l.dw
-
+    tensor xt = matrix_transpose(x);
+    tensor xy = matrix_multiply(xt, dy);
+    tensor_axpy_(1.0, xy, l->dw);
 
     // Calculate dL/dx and return it
-    tensor dx = tensor_copy(dy);
+    // tensor_print(l->w);
+    tensor wt = matrix_transpose(l->w);
+    tensor dx = matrix_multiply(dy, wt);
+
+    tensor_free(db);
+    tensor_free(xt);
+    tensor_free(xy);
+    tensor_free(wt);
 
     return dx;
 }
@@ -63,9 +75,13 @@ void update_connected_layer(layer *l, float rate, float momentum, float decay)
     // then we update l.w = l.w - rate * l.dw
     // lastly, l.dw is the negative update (-update) but for the next iteration
     // we want it to be (-momentum * update) so we just need to scale it a little
-
+    tensor_axpy_(decay, l->w, l->dw);
+    tensor_axpy_(-rate, l->dw, l->w);
+    tensor_scale_(momentum, l->dw);
 
     // Do the same for biases as well but no need to use weight decay on biases
+    tensor_axpy_(-rate, l->db, l->b);
+    tensor_scale_(momentum, l->db);
 }
 
 layer make_connected_layer(int inputs, int outputs)

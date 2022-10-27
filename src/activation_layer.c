@@ -23,19 +23,36 @@ tensor forward_activation_layer(layer *l, tensor x)
     // logistic(x) = 1/(1+e^(-x))
     // relu(x)     = x if x > 0 else 0
     // lrelu(x)    = x if x > 0 else .01 * x
-    // softmax(x)  = e^{x_i} / sum(e^{x_j}) for all x_j in the same row 
+    // softmax(x)  = e^{x_i} / sum(e^{x_j}) for all x_j in the same row
 
     assert(x.n >= 2);
 
-    /* You might want this
     size_t i, j;
+    float sum;
     for(i = 0; i < x.size[0]; ++i){
         tensor x_i = tensor_get_(x, i);
         tensor y_i = tensor_get_(y, i);
         size_t len = tensor_len(x_i);
-        // Do stuff in here
+        sum = 0;
+        for (j = 0; j < len; j++) {
+            float temp = x_i.data[j];
+            if (a == LRELU) {
+                y_i.data[j] = temp >= 0.0 ? temp : temp * 0.01;
+            } else if (a == RELU) {
+                y_i.data[j] = fmax(temp, 0.0);
+            } else if (a == SOFTMAX) {
+                y_i.data[j] = expf(temp);
+                sum += y_i.data[j];
+            } else if (a == LOGISTIC) {
+                y_i.data[j] = 1.0 / (1.0 + expf(-temp));
+            }
+        }
+        if (a == SOFTMAX) {
+            for (j = 0; j < len; j++) {
+                y_i.data[j] /= sum;
+            }
+        }
     }
-    */
 
     return y;
 }
@@ -60,15 +77,23 @@ tensor backward_activation_layer(layer *l, tensor dy)
     // d/dx lrelu(x)    = 1 if x > 0 else 0.01
     // d/dx softmax(x)  = 1
 
-    /* Might want this too
     size_t i, j;
     for(i = 0; i < dx.size[0]; ++i){
         tensor x_i = tensor_get_(x, i);
         tensor dx_i = tensor_get_(dx, i);
         size_t len = tensor_len(dx_i);
-        // Do stuff in here
+        for (j = 0; j < len; j++) {
+            float temp = x_i.data[j];
+            if (a == LRELU) {
+                dx_i.data[j] *= (temp > 0 ? 1 : 0.01f);
+            } else if (a == RELU) {
+                dx_i.data[j] *= (temp > 0 ? 1 : 0);
+            } else if (a == LOGISTIC) {
+                float log = 1 / (1 + expf(-temp));
+                dx_i.data[j] *= log * (1 - log);
+            }
+        }
     }
-    */
 
     return dx;
 }
