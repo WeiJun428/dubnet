@@ -31,6 +31,19 @@ tensor im2col(tensor im, size_t size_y, size_t size_x, size_t stride, size_t pad
 
     // TODO: 5.1
     // Fill in the column matrix with patches from the image
+    for (i = 0; i < im_c; i++) {
+        for (j = 0; j < cols; j++) {
+            int h = (j / res_w) * stride - pad;
+            int w = (j % res_w) * stride - pad;
+            for (k = 0; k < size_x * size_y; k++) {
+                int x = w + k % size_x;
+                int y = h + k / size_x;
+                col.data[i * cols * size_y * size_x + k * cols + j] =
+                    (x < 0 || x >= im_w || y < 0 || y >= im_h) ?
+                    0.0f : im.data[i * im_w * im_h + y * im_w + x];
+            }
+        }
+    }
 
     return col;
 }
@@ -60,6 +73,23 @@ tensor col2im(tensor col, size_t c, size_t h, size_t w, size_t size_y, size_t si
 
     // TODO: 5.1
     // Fill in the column matrix with patches from the image
+    for (i = 0; i < im_c; i++) {
+        for (j = 0; j < cols; j++) {
+            int h = (j / res_w) * stride - pad;
+            int w = (j % res_w) * stride - pad;
+            for (k = 0; k < size_x * size_y; k++) {
+                int x = w + k % size_x;
+                int y = h + k / size_x;
+                int imd = i * im_w * im_h + y * im_w + x;
+                int cmd = i * cols * size_y * size_x + k * cols + j;
+                if (!(x < 0 || x >= im_w || y < 0 || y >= im_h) &&
+                    imd >= 0 && imd < im_c * im_h * im_w
+                ) {
+                    im.data[imd] += col.data[cmd];
+                }
+            }
+        }
+    }
 
     return im;
 }
@@ -185,7 +215,19 @@ tensor backward_convolutional_layer(layer *l, tensor dy)
 void update_convolutional_layer(layer *l, float rate, float momentum, float decay)
 {
     // TODO: 5.3
+    // Apply our updates using our SGD update rule
+    // assume  l.dw = dL/dw - momentum * update_prev
+    // we want l.dw = dL/dw - momentum * update_prev + decay * w
+    // then we update l.w = l.w - rate * l.dw
+    // lastly, l.dw is the negative update (-update) but for the next iteration
+    // we want it to be (-momentum * update) so we just need to scale it a little
+    tensor_axpy_(decay, l->w, l->dw);
+    tensor_axpy_(-rate, l->dw, l->w);
+    tensor_scale_(momentum, l->dw);
 
+    // Do the same for biases as well but no need to use weight decay on biases
+    tensor_axpy_(-rate, l->db, l->b);
+    tensor_scale_(momentum, l->db);
 }
 
 // Make a new convolutional layer

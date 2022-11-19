@@ -4,6 +4,8 @@
 #include <float.h>
 #include "dubnet.h"
 
+#define max(x, y) ((x) > (y) ? (x) : (y))
+
 
 // Run a maxpool layer on input
 // layer l: pointer to layer to run
@@ -28,6 +30,28 @@ tensor forward_maxpool_layer(layer *l, tensor x)
     int pad = -((int) l->size - 1)/2;
 
     // TODO: 6.1 - iterate over the input and fill in the output with max values
+    int ptr = 0;
+    for (int i = 0; i < x.size[0]; i++) {
+        for (int j = 0; j < x.size[1]; j++) {
+            int offset = (i * x.size[1] + j) * x.size[2] * x.size[3];
+            for (int a = 0; a < x.size[2]; a += l->stride) {
+                for (int b = 0; b < x.size[3]; b += l->stride) {
+                    float mx = -1;
+                    for (int c = 0; c < l->size; c++) {
+                        for (int d = 0; d < l->size; d++) {
+                            int xx = a + pad + c;
+                            int yy = b + pad + d;
+                            if (xx < 0 || xx >= x.size[2] || yy < 0 || yy >= x.size[3]) {
+                                continue;
+                            }
+                            mx = max(mx, x.data[offset + xx * x.size[3] + yy]);
+                        }
+                    }
+                    y.data[ptr++] = mx;
+                }
+            }
+        }
+    }
 
     return y;
 }
@@ -44,6 +68,32 @@ tensor backward_maxpool_layer(layer *l, tensor dy)
     // TODO: 6.2 - find the max values in the input again and fill in the
     // corresponding delta with the delta from the output. This should be
     // similar to the forward method in structure.
+    int ptr = 0, col = 0, row = 0;
+    for (int i = 0; i < x.size[0]; i++) {
+        for (int j = 0; j < x.size[1]; j++) {
+            int offset = (i * x.size[1] + j) * x.size[2] * x.size[3];
+            for (int a = 0; a < x.size[2]; a += l->stride) {
+                for (int b = 0; b < x.size[3]; b += l->stride) {
+                    float mx = -1;
+                    for (int c = 0; c < l->size; c++) {
+                        for (int d = 0; d < l->size; d++) {
+                            int xx = a + pad + c;
+                            int yy = b + pad + d;
+                            if (xx < 0 || xx >= x.size[2] || yy < 0 || yy >= x.size[3]) {
+                                continue;
+                            }
+                            if (x.data[offset + xx * x.size[3] + yy] > mx) {
+                                mx = x.data[offset + xx * x.size[3] + yy];
+                                row = xx;
+                                col = yy;
+                            }
+                        }
+                    }
+                    dx.data[offset + row * x.size[3] + col] += dy.data[ptr++];
+                }
+            }
+        }
+    }
 
     return dx;
 }
