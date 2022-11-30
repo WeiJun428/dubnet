@@ -43,6 +43,20 @@ tensor variance2d(tensor x, tensor m)
 
     // TODO: 7.1 - Calculate variance
 
+    int i, j, k, b;
+    float temp;
+    for(b = 0; b < n; ++b){
+        for(k = 0; k < c; ++k){
+            for(j = 0; j < h; ++j){
+                for(i = 0; i < w; ++i){
+                    temp = x.data[i + w*(j + h*(k + b*c))] - m.data[k];
+                    v.data[k] += (temp * temp);
+                }
+            }
+        }
+    }
+    tensor_scale_(1.0/(n*h*w), v);
+
     return v;
 }
 
@@ -55,8 +69,21 @@ tensor normalize2d(tensor x, tensor m, tensor v)
     int h = x.size[2];
     int w = x.size[3];
     tensor y = tensor_make(x.n, x.size);
+    float eps = 0.00001f;
 
     // TODO: 7.2 - Normalize x
+
+    int i, j, k, b;
+    for(b = 0; b < n; ++b){
+        for(k = 0; k < c; ++k){
+            for(j = 0; j < h; ++j){
+                for(i = 0; i < w; ++i){
+                    y.data[i + w*(j + h*(k + b*c))] =
+                        (x.data[i + w*(j + h*(k + b*c))] - m.data[k]) / sqrtf(v.data[k] + eps);
+                }
+            }
+        }
+    }
 
     return y;
 }
@@ -103,8 +130,20 @@ tensor delta_mean2d(tensor dy, tensor v)
     int h = dy.size[2];
     int w = dy.size[3];
     tensor dm = tensor_vmake(1, c);
+    float eps = 0.00001f;
 
     // TODO: 7.3
+    int i, j, k, b;
+    for(b = 0; b < n; ++b){
+        for(k = 0; k < c; ++k){
+            for(j = 0; j < h; ++j){
+                for(i = 0; i < w; ++i){
+                    dm.data[k] += dy.data[i + w*(j + h*(k + b*c))] *
+                        ((-1) / sqrtf(v.data[k] + eps));
+                }
+            }
+        }
+    }
 
     return dm;
 }
@@ -117,8 +156,26 @@ tensor delta_variance2d(tensor dy, tensor x, tensor m, tensor v)
     int h = dy.size[2];
     int w = dy.size[3];
     tensor dv = tensor_vmake(1, c);
+    float eps = 0.00001f;
 
     // TODO 7.4 - Calculate dL/dv
+
+    int i, j, k, b;
+    float temp;
+    for(b = 0; b < n; ++b){
+        for(k = 0; k < c; ++k){
+            temp = sqrtf(v.data[k] + eps);
+            temp = temp * temp * temp;
+            for(j = 0; j < h; ++j){
+                for(i = 0; i < w; ++i){
+                    dv.data[k] +=
+                        dy.data[i + w*(j + h*(k + b*c))] *
+                        (x.data[i + w*(j + h*(k + b*c))] - m.data[k]) *
+                        ((-1.0f/2) / temp);
+                }
+            }
+        }
+    }
 
     return dv;
 }
@@ -130,10 +187,27 @@ tensor delta_batchnorm2d(tensor dy, tensor dm, tensor dv, tensor m, tensor v, te
     int h = dy.size[2];
     int w = dy.size[3];
     tensor dx = tensor_make(dy.n, dy.size);
+    float eps = 0.00001f;
 
     int num = n * h * w;
 
     // TODO 7.4 - Calculate dL/dv
+
+    int i, j, k, b;
+    float temp;
+    for(b = 0; b < n; ++b){
+        for(k = 0; k < c; ++k){
+            temp = sqrtf(v.data[k] + eps);
+            for(j = 0; j < h; ++j){
+                for(i = 0; i < w; ++i){
+                    dx.data[i + w*(j + h*(k + b*c))] =
+                        dy.data[i + w*(j + h*(k + b*c))] / temp +
+                        dv.data[k] * 2.0f * (x.data[i + w*(j + h*(k + b*c))] - m.data[k]) / num +
+                        dm.data[k] / num;
+                }
+            }
+        }
+    }
 
     return dx;
 }
